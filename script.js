@@ -22,7 +22,7 @@ function clicker() {
 }
 
 $(document).keyup(function (event) {
-    if (event.key === "Escape" || event.keyCode === 27) {
+    if (event.key == "Escape" || event.keyCode == 27) {
         if (a.length != 0) {
             clicker();
         }
