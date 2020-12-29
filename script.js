@@ -1,10 +1,6 @@
 
 let a = new Array();
-// document.addEventListener('DOMContentLoaded', function(){
-//     chrome.tabs.executeScript(null, {"code": "window.getSelection()}", function(selection) {
-//         a.push()
-//     }});
-// });
+
 addEventListener('mouseup', function (event) {
     a.push(event.target);
     console.log("Нажато...");
