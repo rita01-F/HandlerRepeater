@@ -1,10 +1,10 @@
 let record = false;
 let repeat = false;
 let selectors;
-let selectors_input;
+let text_input;
 let url;
-let i = 0;
-let j = 0;
+let index_selector = 0;
+let index_text = 0;
 let status = "Off";
 
 chrome.browserAction.setBadgeBackgroundColor({color: "red"});
@@ -30,16 +30,18 @@ chrome.browserAction.onClicked.addListener(()=> {
       chrome.browserAction.setBadgeBackgroundColor({color: "red"});
       status = "Off";
       record = false;
+      // Единственный способ скачать файл - создать элемент <a> и симитировать его нажатие с помощью метода click(),
+      // так как вручную нажать на него через фоновую страницу невозможно
       if (selectors.length > 0) {
          $('body').append("<a id='download'></a>");
          download = document.getElementById('download');
-         downloadFile(download, url + "\n" + JSON.stringify(selectors) + "\n" + JSON.stringify(selectors_input), 'repeat_script.json', 'text/plain')
+         downloadFile(download, url + "\n" + JSON.stringify(selectors) + "\n" + JSON.stringify(text_input), 'repeat_script.json', 'text/plain')
          download.click();
          $('a#download').remove();
       }
    }
    selectors = [];
-   selectors_input = [];
+   text_input = [];
    chrome.browserAction.setBadgeText({text: status});
 });
 
@@ -55,13 +57,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, response) {
       }
 
       if (message.subtype == 'push') {
-         console.log("Нажат элемент: ", message.element);
          selectors.push(message.element);
       }
 
       if (message.subtype == 'pushInput') {
-         selectors_input.push(message.value);
-         console.log(JSON.stringify(selectors_input));
+         text_input.push(message.value);
       }
    }
 
@@ -69,30 +69,25 @@ chrome.runtime.onMessage.addListener(function(message, sender, response) {
       if (message.subtype == 'setInfo') {
          if (!repeat) {
             selectors = JSON.parse(message.selectors);
-            selectors_input = JSON.parse(message.selectors_input);
+            text_input = JSON.parse(message.text_input);
             repeat = true;
-         } else {
-            console.log("Длина массива: ", selectors.length, "Идёт повтор: ", repeat);
-            repeat = false
          }
          response ({allow: repeat});
       }
 
       if (message.subtype == 'isGoing') {
          if (repeat) {
-            if (i < selectors.length) {
-               console.log("Нажимаем на элемент: ", selectors[i]);
-               if (selectors[i].indexOf("input") == 0) {
-                  console.log("Input... ", JSON.stringify(selectors_input[j]));
-                  response ({allow: repeat, element: selectors[i], valueInput: selectors_input[j]});
-                  j++;
+            if (index_selector < selectors.length) {
+               if (selectors[index_selector].indexOf("input") == 0) {
+                  response ({allow: repeat, element: selectors[index_selector], valueInput: text_input[index_text]});
+                  index_text++;
                } else {
-                  response ({allow: repeat, element: selectors[i]});
+                  response ({allow: repeat, element: selectors[index_selector]});
                }
-               i++;
+               index_selector++;
             } else {
-               i = 0;
-               j = 0;
+               index_selector = 0;
+               index_text = 0;
                repeat = false;
             }
          } else {

@@ -1,6 +1,3 @@
-let val;
-let selectors = [];
-let i = 0;
 let selector;
 
 function clicker() {
@@ -14,11 +11,9 @@ function clicker() {
                 x = el.substr(el.indexOf(" ") + 1);
                 el = el.substring(0, el.indexOf(" "));
             }
-            console.log("Нажимаем селектор: " + el + " с индексом: " + x);
             selectors = document.querySelectorAll(el);
             selectors[x].click();
             if (el.indexOf("input") == 0) {
-                console.log("Найден Input, заполняем...");
                 selectors[x].value = message.valueInput;
             }
         }
@@ -34,13 +29,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, response) {
 });
 
 $(document).ready(function() { 
-    timerClicker = setInterval(clicker, 5000);
+    timerClicker = setInterval(clicker, 3000);
 })
 
 
 addEventListener('mousedown', function (event) {
     chrome.runtime.sendMessage({type: 'record', subtype: 'getInfo'}, function(message) {
         if (message.status) {
+            // Если предыдущий элемент - input, то берём его содержимое и отправляем в background.js
             if (selector) {
                 if (selector.indexOf("input") == 0) {
                     let el = selector;
@@ -51,7 +47,6 @@ addEventListener('mousedown', function (event) {
                         x = el.substr(el.indexOf(" ") + 1);
                         el = el.substring(0, el.indexOf(" "));
                     }
-                    console.log("Найден Input: " + el + " с индексом: " + x);
                     selectors = document.querySelectorAll(el);
                     chrome.runtime.sendMessage({type:'record', subtype: 'pushInput', value: selectors[x].value});
                 }
@@ -70,7 +65,6 @@ addEventListener('mousedown', function (event) {
                 idName = "";
             }
             selector = event.target.tagName.toLowerCase() + className + idName;
-            console.log("Нажат элемент: ", selector);
             if(document.querySelectorAll(selector).length > 1) {
                 selector += " " + $(event.target).index(selector);
             };
@@ -82,51 +76,37 @@ addEventListener('mousedown', function (event) {
 function startRepeat(content) {
     content = content.split("\n");
     $('#uploadJSONfile').remove();
-    chrome.runtime.sendMessage({type: 'repeat', subtype: 'setInfo', selectors: content[1], selectors_input: content[2]}, function(message) {
+    chrome.runtime.sendMessage({type: 'repeat', subtype: 'setInfo', selectors: content[1], text_input: content[2]}, function(message) {
         if (message.allow) {
             document.location.href = content[0];
+
+            // Необходимо обнулить интервал, иначе может начаться процесс нажатия на элементы ещё до загрузки стартовой страницы
             clearInterval(timerClicker);
-        } else {
-            console.log("Вы не можете запустить функцию Repeat");
         }
     });
 }
 
-// параметр e - объект файла из элемента выбора
 $(document).on('change', '#uploadJSONfile', function (e) {
-    // если есть нужные объекты - то чтение файлов возможно
     if (window.FileList && window.File) {
         const file = e.target.files[0];
-
         const name = file.name ? file.name : 'NOT SUPPORTED';
-        const type = file.type ? file.type : 'NOT SUPPORTED';
-        const size = file.size ? file.size : 'NOT SUPPORTED'; 
-       
-        // объект класса читающего файл
-        const reader = new FileReader();
-
-        // обработчик, который срабатывает при загрузке файла
-        reader.addEventListener('load', event => {
-           
-            // содержимое файла
-            let content = event.target.result;
-            startRepeat(content);
-            // console.log(JSON.parse(content));
-        });
-
-
-        // читаем текстовый файл
-        reader.readAsText(file);
+        if (name.indexOf(".json") != -1) {
+            const reader = new FileReader();
+            reader.addEventListener('load', event => {
+                let content = event.target.result;
+                startRepeat(content);
+            });
+            reader.readAsText(file);
+        }       
     }
 });
 
 $(document).keyup(function (event) {
     if (event.key === "Escape" || event.keyCode === 27) {
         chrome.runtime.sendMessage({type: 'record', subtype: 'getInfo'}, function(message) {
+            // Загрузку из фоновой страницы нельзя симитировать через нажатие <input> (File chooser dialog can only be shown with a user activation)
             if (!message.status) {
                 $('body').append("<input type='file' style='position: fixed; top: 0; left: 0;' id='uploadJSONfile'/>");
-            } else {
-                console.log("Вы не можете запустить функцию Repeat, пока идёт запись");
             }
         });
     }
